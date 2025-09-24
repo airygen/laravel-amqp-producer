@@ -4,46 +4,95 @@ declare(strict_types=1);
 
 namespace Airygen\RabbitMQ;
 
-use Airygen\RabbitMQ\Config\ChannelResolver;
-use Airygen\RabbitMQ\Connection\ConnectionFactory;
-use Airygen\RabbitMQ\Connection\ConnectionManager;
-use Airygen\RabbitMQ\Connection\ConnectionManagerInterface;
+use Airygen\RabbitMQ\Contracts\ConnectionManagerInterface;
+use Airygen\RabbitMQ\Contracts\ExceptionClassifierInterface;
+use Airygen\RabbitMQ\Contracts\MetricsExporterInterface;
+use Airygen\RabbitMQ\Contracts\PidProviderInterface;
 use Airygen\RabbitMQ\Contracts\ProducerInterface;
-use Airygen\RabbitMQ\Messaging\MessageFactory;
-use Airygen\RabbitMQ\Producer\Publisher;
+use Airygen\RabbitMQ\Factories\ConnectionFactory;
+use Airygen\RabbitMQ\Factories\MessageFactory;
+use Airygen\RabbitMQ\Support\ConnectionManager;
+use Airygen\RabbitMQ\Support\DefaultExceptionClassifier;
+use Airygen\RabbitMQ\Support\PrometheusMetricsExporter;
 use Airygen\RabbitMQ\Support\SystemClock;
+use Airygen\RabbitMQ\Support\SystemPidProvider;
 use Illuminate\Support\ServiceProvider;
 
 final class RabbitMQServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/amqp.php', 'amqp');
+        $this->mergeConfigFrom(__DIR__ . '/amqp.php', 'amqp');
+        $amqpConfig = $this->app['config']['amqp']
+            ?? throw new \RuntimeException('Missing AMQP connections config');
 
-        $this->app->singleton(ConnectionFactory::class, fn ($app) => new ConnectionFactory($app['config']['amqp']['base_connection'] ?? [])
+        $this->app->singleton(PidProviderInterface::class, SystemPidProvider::class);
+
+        $this->app->singleton(
+            ConnectionManager::class,
+            fn ($app) => new ConnectionManager(
+                $app->make(ConnectionFactory::class),
+                $amqpConfig,
+                $app->make(PidProviderInterface::class)
+            )
         );
-
-        $this->app->singleton(ConnectionManager::class, fn ($app) => new ConnectionManager($app->make(ConnectionFactory::class))
-        );
-        $this->app->alias(ConnectionManager::class, ConnectionManagerInterface::class);
-
-        $this->app->singleton(ChannelResolver::class, fn ($app) => new ChannelResolver($app['config']['amqp'])
+        $this->app->alias(
+            ConnectionManager::class,
+            ConnectionManagerInterface::class
         );
 
         $this->app->singleton(MessageFactory::class, fn ($app) => new MessageFactory(
-            clock: new SystemClock,
+            clock: new SystemClock(),
             appName: config('app.name', 'laravel'),
             env: app()->environment(),
-        )
-        );
+        ));
 
-        $this->app->bind(ProducerInterface::class, Publisher::class);
+        $this->app->singleton(ExceptionClassifierInterface::class, DefaultExceptionClassifier::class);
+
+        $this->app->bind(ProducerInterface::class, function ($app) use ($amqpConfig) {
+            $retry = $amqpConfig['retry'] ?? [];
+            $logger = $app->has('log') ? $app->make('log') : null;
+
+            return new Publisher(
+                $app->make(ConnectionManagerInterface::class),
+                $app->make(MessageFactory::class),
+                $app->make(ExceptionClassifierInterface::class),
+                $logger,
+                $retry
+            );
+        });
+
+        // Metrics exporter binding (Prometheus skeleton)
+        $this->app->singleton(MetricsExporterInterface::class, PrometheusMetricsExporter::class);
+
+        // Console command(s)
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Airygen\RabbitMQ\Console\RabbitMqPingCommand::class,
+                \Airygen\RabbitMQ\Console\RabbitMqMetricsCommand::class,
+            ]);
+        }
     }
 
     public function boot(): void
     {
-        $this->publishes([
-            __DIR__.'/../config/amqp.php' => config_path('amqp.php'),
-        ], 'config');
+        $this->publishes(
+            [
+                __DIR__ . '/amqp.php' => config_path('amqp.php'),
+            ],
+            'config'
+        );
+
+        // Octane / Swoole / RoadRunner: ensure per-worker fresh state.
+        $workerStarting = 'Laravel\\Octane\\Events\\WorkerStarting';
+        $workerStopping = 'Laravel\\Octane\\Events\\WorkerStopping';
+        if (class_exists($workerStarting) && class_exists($workerStopping)) {
+            $this->app['events']->listen($workerStarting, function () {
+                $this->app->make(ConnectionManager::class)->reset();
+            });
+            $this->app['events']->listen($workerStopping, function () {
+                $this->app->make(ConnectionManager::class)->reset();
+            });
+        }
     }
 }

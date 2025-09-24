@@ -1,17 +1,89 @@
 name: CI
+
 on:
   push:
+    branches: [ main, master ]
   pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
 jobs:
-  php-tests:
+  unit:
+    name: Unit Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sockets, pcntl
+          coverage: none
+      - name: Validate composer.json
+        run: composer validate --no-check-publish
+      - name: Install dependencies (no dev update)
+        run: composer install --no-interaction --prefer-dist
+      - name: Lint (Pint)
+        run: vendor/bin/pint --test
+      - name: Static Analysis (PHPStan)
+        run: vendor/bin/phpstan analyse --memory-limit=512M
+      - name: Unit Tests
+        run: php -d xdebug.mode=off vendor/bin/phpunit --testsuite Unit --no-coverage
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:3.13-management
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics ping" \
+          --health-interval=5s \
+          --health-timeout=3s \
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          tools: composer
-      - run: composer install --no-interaction --prefer-dist
-      - run: composer analyse
-      - run: composer lint
-      - run: composer test
+          extensions: sockets, pcntl
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Integration Tests
+        env:
+          INTEGRATION_TESTS: 1
+        run: php -d xdebug.mode=off vendor/bin/phpunit --testsuite Integration --no-coverage
+
+  coverage:
+    name: Coverage (PHP 8.3)
+    runs-on: ubuntu-latest
+    needs: [unit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sockets, pcntl
+          coverage: xdebug
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Generate Coverage
+        run: php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-clover=coverage/clover.xml --coverage-html=coverage/html || true
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: coverage-html
+            path: coverage/html
+      - name: Upload Clover
+        uses: actions/upload-artifact@v4
+        with:
+            name: coverage-clover
+            path: coverage/clover.xml

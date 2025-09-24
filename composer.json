@@ -1,6 +1,6 @@
 {
-  "name": "airygen/rabbitmq-full",
-  "description": "RabbitMQ publisher/consumer for Laravel with confirms, retries, DLX strategy, tests, CI, and static analysis.",
+  "name": "airygen/laravel-amqp-producer",
+  "description": "RabbitMQ publisher for Laravel with confirms, retries, DLX strategy.",
   "type": "library",
   "license": "MIT",
   "require": {
@@ -32,9 +32,5 @@
       ]
     }
   },
-  "scripts": {
-    "test": "php -d xdebug.mode=off vendor/bin/phpunit --testdox --no-coverage",
-    "lint": "vendor/bin/pint --test",
-    "analyse": "vendor/bin/phpstan analyse --memory-limit=512M"
-  }
+  "scripts": {}
 }

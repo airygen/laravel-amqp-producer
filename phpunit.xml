@@ -1,13 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit colors="true" bootstrap="vendor/autoload.php">
-  <testsuites>
-    <testsuite name="Unit">
-      <directory>tests</directory>
-    </testsuite>
-  </testsuites>
-  <coverage processUncoveredFiles="true">
-    <include>
-      <directory suffix=".php">src</directory>
-    </include>
-  </coverage>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
+    bootstrap="vendor/autoload.php"
+    colors="true"
+    cacheDirectory=".phpunit.cache"
+    executionOrder="defects"
+    beStrictAboutTestsThatDoNotTestAnything="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">tests</directory>
+            <exclude>tests/Integration</exclude>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory suffix="Test.php">tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <exclude>
+            <!-- Hard to unit test without real broker; integration covers runtime path -->
+            <file>src/Factories/ConnectionFactory.php</file>
+            <!-- Simple config holder -->
+            <file>src/amqp.php</file>
+            <!-- Framework wiring; exercised indirectly but not critical for logic coverage -->
+            <file>src/RabbitMQServiceProvider.php</file>
+        </exclude>
+    </source>
+    <coverage>
+        <report>
+            <html outputDirectory="coverage/html" lowUpperBound="50" highLowerBound="90" />
+            <text outputFile="coverage/coverage.txt" />
+            <clover outputFile="coverage/clover.xml" />
+        </report>
+    </coverage>
 </phpunit>

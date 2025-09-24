@@ -1,0 +1,7 @@
+vendor/.phpunit.cache
+coverage
+node_modules
+.git
+.idea
+.vscode
+*.log

@@ -163,7 +163,8 @@ final class Publisher implements ProducerInterface
         if ($payloads === []) {
             return;
         }
-        // 將 payload 依連線分組，對每個連線做獨立 retry，避免某一連線 transient 錯誤重置所有連線。
+        // Group payloads by connection and retry each group independently to avoid a transient error on one connection
+        // resetting all connections.
         $groups = [];
         foreach ($payloads as $payload) {
             $name = $payload->getConnectionName() ?? self::DEFAULT_CONNECTION_NAME;
@@ -182,7 +183,7 @@ final class Publisher implements ProducerInterface
                 $attempts,
                 $decider,
                 function () use ($groupPayloads, $header, $connectionName) {
-                    // 單一連線開一個 channel (可能被重用) 內連續發多則訊息
+                    // For a single connection, open (or reuse) one channel and publish multiple messages sequentially.
                     $this->cm->withChannel(
                         function (AMQPChannel $ch) use ($groupPayloads, $header) {
                             $ch->confirm_select();

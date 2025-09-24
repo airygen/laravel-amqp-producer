@@ -164,7 +164,8 @@ final class ConnectionManager implements ConnectionManagerInterface
     public function reset(?string $name = null): void
     {
         if ($name === null) {
-            // 明確要求全部清除才會走全域 reset，避免傳遞 null (如 batchPublish 內部) 誤清除所有連線。
+            // Only perform a global reset when explicitly requested. Passing null from internal calls
+            // (e.g. batchPublish) should not accidentally clear all connections.
             foreach ($this->connections as $key => $conn) {
                 if ($conn) {
                     try {

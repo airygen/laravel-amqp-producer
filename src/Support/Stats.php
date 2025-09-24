@@ -15,6 +15,14 @@ namespace Airygen\RabbitMQ\Support;
  */
 final class Stats
 {
+    /** @var list<string> */
+    private const SCALAR_COUNTER_KEYS = [
+        'publish_attempts',
+        'publish_retries',
+        'publish_failures',
+        'connection_resets',
+    ];
+
     /** @var StatsCounters */
     private static array $counters = [
         'publish_attempts' => 0,
@@ -27,16 +35,8 @@ final class Stats
 
     public static function incr(string $key, int $by = 1): void
     {
-        if ($key === 'per_connection') {
-            // per_connection is a structured sub-array; ignore direct scalar increments
-            return;
-        }
-        if (! array_key_exists($key, self::$counters)) {
-            // ignore unknown keys to keep shape stable
-            return;
-        }
-        if (!is_int(self::$counters[$key])) {
-            return; // safeguard against unexpected shape
+        if (! in_array($key, self::SCALAR_COUNTER_KEYS, true)) {
+            return; // ignore unknown keys and structured counters
         }
         self::$counters[$key] += $by;
     }
@@ -70,14 +70,9 @@ final class Stats
      */
     public static function incrConnection(string $connection, string $metric, int $by = 1): void
     {
-        if (! isset(self::$counters['per_connection']) || ! is_array(self::$counters['per_connection'])) {
-            self::$counters['per_connection'] = [];
-        }
-        if (! isset(self::$counters['per_connection'][$connection])) {
-            self::$counters['per_connection'][$connection] = [];
-        }
-        $cur = self::$counters['per_connection'][$connection][$metric] ?? 0;
-        self::$counters['per_connection'][$connection][$metric] = $cur + $by;
+        $bucket = self::$counters['per_connection'][$connection] ?? [];
+        $bucket[$metric] = ($bucket[$metric] ?? 0) + $by;
+        self::$counters['per_connection'][$connection] = $bucket;
     }
 
     public static function reset(): void

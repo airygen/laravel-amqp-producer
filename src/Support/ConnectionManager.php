@@ -48,7 +48,7 @@ final class ConnectionManager implements ConnectionManagerInterface
         $this->pidProvider = $pidProvider ?? new SystemPidProvider();
         $pidRaw = $this->pidProvider->getPid();
         $pid = $pidRaw > 0 ? $pidRaw : (int) getmypid();
-        if (! is_int($pid) || $pid <= 0) {
+        if ($pid <= 0) {
             $pid = 1; // final fallback
         }
         $this->pid = (int) $pid;

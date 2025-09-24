@@ -20,7 +20,7 @@ help:
 	@echo "  coverage     - generate coverage reports"
 	@echo "  lint         - run code style check"
 	@echo "  analyse      - run static analysis"
-	@echo "  fix          - pint fix (style)"
+	@echo "  fix          - auto-fix style issues (phpcbf)"
 	@echo "  clean        - remove vendor & coverage"
 	@echo "  ci           - run fast checks (lint + analyse + unit)"
 
@@ -54,13 +54,13 @@ coverage:
 	$(DOCKER_COMPOSE) run --rm -e XDEBUG_MODE=coverage $(PHP_SERVICE) php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-html=coverage/html --coverage-clover=coverage/clover.xml || true
 
 lint:
-	$(PHP_RUN) vendor/bin/pint --test
+	$(PHP_RUN) vendor/bin/phpcs --standard=phpcx.xml --report=full
 
 analyse:
 	$(PHP_RUN) vendor/bin/phpstan analyse --memory-limit=512M
 
 fix:
-	$(DOCKER_COMPOSE) run --rm $(PHP_SERVICE) vendor/bin/pint
+	$(DOCKER_COMPOSE) run --rm $(PHP_SERVICE) vendor/bin/phpcbf --standard=phpcx.xml || true
 
 clean:
 	rm -rf vendor coverage .phpunit.cache || true

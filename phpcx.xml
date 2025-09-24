@@ -19,10 +19,14 @@
         <exclude name="PSR12.Operators.OperatorSpacing.NoSpaceAfter"/>
     </rule>
  
-    <rule ref= "Generic.Files.LineLength">
+    <rule ref="Generic.Files.LineLength">
         <properties>
-            <property name="lineLimit" value="80"/>
-            <property name="absoluteLineLimit" value="120"/>
+            <!-- Soft warning limit -->
+            <property name="lineLimit" value="120"/>
+            <!-- Set to 0 to disable hard error limit (only warnings beyond lineLimit) -->
+            <property name="absoluteLineLimit" value="0"/>
+            <!-- Ignore long comment/doc lines (optional). Set to true if you don't want comment warnings -->
+            <!-- <property name="ignoreComments" value="true"/> -->
         </properties>
     </rule>
     <rule ref="PSR1.Methods.CamelCapsMethodName.NotCamelCaps">

@@ -14,7 +14,9 @@ abstract class ProducerPayload implements ProducerPayloadInterface
 
     protected ?string $routingKey = null;
 
-    public function __construct(protected array $data) {}
+    public function __construct(protected array $data)
+    {
+    }
 
     public function getConnectionName(): ?string
     {

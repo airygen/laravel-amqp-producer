@@ -14,6 +14,9 @@ abstract class ProducerPayload implements ProducerPayloadInterface
 
     protected ?string $routingKey = null;
 
+    /**
+     * @param array<string,mixed> $data
+     */
     public function __construct(protected array $data)
     {
     }
@@ -33,6 +36,9 @@ abstract class ProducerPayload implements ProducerPayloadInterface
         return $this->routingKey;
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function jsonSerialize(): mixed
     {
         return $this->data;

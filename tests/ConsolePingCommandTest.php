@@ -26,7 +26,7 @@ final class ConsolePingCommandTest extends TestCase
             {
             }
 
-            public function get(): AbstractConnection
+            public function get(string $name = 'default'): AbstractConnection
             {
                 return new class extends AbstractConnection
                 {
@@ -72,7 +72,7 @@ final class ConsolePingCommandTest extends TestCase
                 return $fn($channel);
             }
 
-            public function reset(): void
+            public function reset(?string $name = null): void
             {
             }
         };

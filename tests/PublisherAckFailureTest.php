@@ -51,7 +51,7 @@ final class PublisherAckFailureTest extends TestCase
         $mf = new MessageFactory($clock, 'app', 'testing');
         $cm = new class implements ConnectionManagerInterface
         {
-            public function withChannel(callable $fn)
+            public function withChannel(callable $fn, string $connectionName = 'default')
             {
                 $channel = new class extends AMQPChannel
                 {
@@ -99,7 +99,7 @@ final class PublisherAckFailureTest extends TestCase
                 return $fn($channel);
             }
 
-            public function get(): AbstractConnection
+            public function get(string $name = 'default'): AbstractConnection
             {
                 return new class extends AbstractConnection
                 {
@@ -128,7 +128,7 @@ final class PublisherAckFailureTest extends TestCase
                 };
             }
 
-            public function reset(): void
+            public function reset(?string $name = null): void
             {
             }
         };

@@ -8,6 +8,10 @@ use PhpAmqpLib\Connection\AMQPStreamConnection;
 
 class ConnectionFactory
 {
+    /**
+     * @param array<string,mixed> $base Connection definition.
+     *   Required keys: host, port, user, password, vhost. Optional: options
+     */
     public function create(array $base): AMQPStreamConnection
     {
         foreach (['host', 'port', 'user', 'password', 'vhost'] as $k) {

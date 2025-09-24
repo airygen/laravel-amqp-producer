@@ -9,15 +9,14 @@ use PhpAmqpLib\Connection\AbstractConnection;
 
 interface ConnectionManagerInterface
 {
-    public function get(): AbstractConnection;
+    public function get(string $name = 'default'): AbstractConnection;
 
     /**
      * @template T
-     *
-     * @param  callable(AMQPChannel):T  $fn
+     * @param callable(AMQPChannel):T $fn
      * @return T
      */
-    public function withChannel(callable $fn);
+    public function withChannel(callable $fn, string $connectionName = 'default');
 
-    public function reset(): void;
+    public function reset(?string $name = null): void;
 }

@@ -36,19 +36,17 @@ final class PrometheusMetricsExporter implements MetricsExporterInterface
         }
 
         // Per-connection metrics (dynamic) - we only know names at runtime.
-        if (isset($snapshot['per_connection']) && is_array($snapshot['per_connection'])) {
-            foreach ($snapshot['per_connection'] as $connection => $metrics) {
-                foreach ($metrics as $mKey => $value) {
-                    $metricName = $this->metricName('connection_' . $mKey);
-                    $lines[] = sprintf('# HELP %s Per-connection metric (%s).', $metricName, $mKey);
-                    $lines[] = sprintf('# TYPE %s counter', $metricName);
-                    $lines[] = sprintf(
-                        '%s{connection="%s"} %d',
-                        $metricName,
-                        $this->escapeLabel($connection),
-                        (int) $value
-                    );
-                }
+        foreach ($snapshot['per_connection'] as $connection => $metrics) {
+            foreach ($metrics as $mKey => $value) {
+                $metricName = $this->metricName('connection_' . $mKey);
+                $lines[] = sprintf('# HELP %s Per-connection metric (%s).', $metricName, $mKey);
+                $lines[] = sprintf('# TYPE %s counter', $metricName);
+                $lines[] = sprintf(
+                    '%s{connection="%s"} %d',
+                    $metricName,
+                    $this->escapeLabel($connection),
+                    (int) $value
+                );
             }
         }
 
@@ -57,7 +55,8 @@ final class PrometheusMetricsExporter implements MetricsExporterInterface
 
     private function metricName(string $raw): string
     {
-        return 'rabbitmq_' . strtolower(preg_replace('/[^a-zA-Z0-9_]+/', '_', $raw)) . '_total';
+        $metric = (string) preg_replace('/[^a-zA-Z0-9_]+/', '_', $raw);
+        return 'rabbitmq_' . strtolower($metric) . '_total';
     }
 
     private function escapeLabel(string $value): string

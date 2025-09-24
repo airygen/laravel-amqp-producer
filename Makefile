@@ -45,10 +45,10 @@ logs:
 test: unit integration
 
 unit:
-	$(PHP_RUN) php -d xdebug.mode=off vendor/bin/phpunit --testsuite Unit --no-coverage
+	$(PHP_RUN) php -d xdebug.mode=off vendor/bin/phpunit --testsuite Unit --no-coverage --testdox
 
 integration:
-	$(DOCKER_COMPOSE) run --rm -e INTEGRATION_TESTS=1 $(PHP_SERVICE) php -d xdebug.mode=off vendor/bin/phpunit --testsuite Integration --no-coverage
+	$(DOCKER_COMPOSE) run --rm -e INTEGRATION_TESTS=1 $(PHP_SERVICE) php -d xdebug.mode=off vendor/bin/phpunit --testsuite Integration --no-coverage --testdox
 
 coverage:
 	$(DOCKER_COMPOSE) run --rm -e XDEBUG_MODE=coverage $(PHP_SERVICE) php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-html=coverage/html --coverage-clover=coverage/clover.xml || true

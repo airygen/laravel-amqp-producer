@@ -14,13 +14,16 @@ final class HealthChecker
     }
 
     /**
-     * @param  string[]  $connectionNames
+     * @param  array<int,string>  $connectionNames
      * @return array<string,bool>
      */
     public function ping(array $connectionNames): array
     {
         $results = [];
         foreach ($connectionNames as $name) {
+            if ($name === '') {
+                continue; // skip invalid
+            }
             try {
                 $this->manager->withChannel(static function () {
                 }, $name);

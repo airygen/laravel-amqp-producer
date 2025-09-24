@@ -35,6 +35,9 @@ final class Publisher implements ProducerInterface
     /** @var callable */
     private $randFloat;
 
+    /**
+     * @param array{base_delay?:float|int,max_delay?:float|int,jitter?:bool} $retryConfig
+     */
     public function __construct(
         private ConnectionManagerInterface $cm,
         private MessageFactory $msgFactory,
@@ -52,10 +55,9 @@ final class Publisher implements ProducerInterface
     }
 
     /**
-     * @param  ProducerPayload[]  $payloads
-     * @param  array|null  $headers
-     * @param  int|null  $retryTimes  — Max retry attempts
-     * @param  callable|null  $when  — Retry decider
+     * @param  array<string,mixed>|null  $header
+     * @param  int|null  $retryTimes  Max retry attempts
+     * @param  callable(\Throwable):bool|null  $when  Retry decider
      *
      * Purpose:
      *   A callable invoked whenever publishing throws an exception. It decides
@@ -120,6 +122,10 @@ final class Publisher implements ProducerInterface
         $routingKey = $payload->getRoutingKey() ?? '';
         $exchange = $payload->getExchangeName() ?? '';
         $connectionName = $payload->getConnectionName() ?? self::DEFAULT_CONNECTION_NAME;
+        if ($connectionName === '') {
+            $connectionName = self::DEFAULT_CONNECTION_NAME;
+        }
+        /** @var non-empty-string $connectionName */
 
         $this->retry(
             $retryTimes ?? self::DEFAULT_RETRY_TIMES,
@@ -142,6 +148,12 @@ final class Publisher implements ProducerInterface
         );
     }
 
+    /**
+     * @param list<ProducerPayloadInterface> $payloads
+     * @param array<string,mixed>|null $header
+     * @param int|null $retryTimes
+     * @param callable(\Throwable):bool|null $when
+     */
     public function batchPublish(
         array $payloads,
         ?array $header = null,
@@ -162,6 +174,10 @@ final class Publisher implements ProducerInterface
         $decider = $when ?? [$this->classifier, 'isTransient'];
 
         foreach ($groups as $connectionName => $groupPayloads) {
+            if ($connectionName === '') {
+                $connectionName = self::DEFAULT_CONNECTION_NAME;
+            }
+            /** @var non-empty-string $connectionName */
             $this->retry(
                 $attempts,
                 $decider,
@@ -189,14 +205,19 @@ final class Publisher implements ProducerInterface
         }
     }
 
+    /**
+     * @param callable(\Throwable):bool $when
+     * @param callable $cb
+     * @param non-empty-string|null $connectionName
+     */
     private function retry(int $times, callable $when, callable $cb, ?string $connectionName = null): void
     {
         $delay = $this->retryBaseDelay;
-        $last = null;
+        $last = null; // Throwable|null
         for ($i = 0; $i < max(1, $times); $i++) {
             try {
                 Stats::incr('publish_attempts');
-                if ($connectionName) {
+                if ($connectionName !== null) {
                     Stats::incrConnection($connectionName, 'publish_attempts');
                 }
                 $cb();
@@ -209,7 +230,7 @@ final class Publisher implements ProducerInterface
                 $last = $e;
                 if (! $when($e)) {
                     Stats::incr('publish_failures');
-                    if ($connectionName) {
+                    if ($connectionName !== null) {
                         Stats::incrConnection($connectionName, 'publish_failures');
                     }
                     $this->log('error', 'non-transient publish failure', [
@@ -220,7 +241,7 @@ final class Publisher implements ProducerInterface
                     throw $e;
                 }
                 Stats::incr('publish_retries');
-                if ($connectionName) {
+                if ($connectionName !== null) {
                     Stats::incrConnection($connectionName, 'publish_retries');
                 }
                 $sleep = $delay;
@@ -243,9 +264,13 @@ final class Publisher implements ProducerInterface
                 }
             }
         }
-        throw $last ?? new RuntimeException('Unknown publish failure');
+        /** @var Throwable $last Guaranteed non-null when loop exits without return */
+        throw $last;
     }
 
+    /**
+     * @param array<string,mixed> $context
+     */
     private function log(string $level, string $message, array $context = []): void
     {
         if ($this->logger) {

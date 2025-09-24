@@ -28,23 +28,30 @@ final class ConnectionManager implements ConnectionManagerInterface
     /** Whether to reuse a single channel per connection instead of opening/closing every call */
     private bool $reuseChannel;
 
-    /** Original full AMQP config (may contain 'connections' & global 'options') */
-    private array $config;
-
-    /** Extracted connections definitions */
+    /**
+     * Extracted connections definitions
+     * @var array<string,array<string,mixed>>
+     */
     private array $connectionDefinitions;
 
     /** PID at the time this manager was instantiated (for fork detection in Octane/Swoole) */
     private int $pid;
 
+    /**
+     * @param array<string,mixed> $config
+     */
     public function __construct(
         private ConnectionFactory $factory,
         array $config,
         private ?PidProviderInterface $pidProvider = null
     ) {
         $this->pidProvider = $pidProvider ?? new SystemPidProvider();
-        $this->pid = $this->pidProvider->getPid();
-        $this->config = $config;
+        $pidRaw = $this->pidProvider->getPid();
+        $pid = $pidRaw > 0 ? $pidRaw : (int) getmypid();
+        if (! is_int($pid) || $pid <= 0) {
+            $pid = 1; // final fallback
+        }
+        $this->pid = (int) $pid;
         $this->connectionDefinitions = $config['connections'] ?? $config; // backward compatibility
         $globalOptions = $config['options'] ?? [];
         $this->reuseChannel = (bool) ($globalOptions['reuse_channel'] ?? true);
@@ -54,22 +61,25 @@ final class ConnectionManager implements ConnectionManagerInterface
     public function get(string $name = 'default'): AbstractConnection
     {
         // Detect process fork (Octane/Swoole worker). If PID changed, dispose all stale resources.
-        $currentPid = $this->pidProvider?->getPid() ?? getmypid();
+        $raw = $this->pidProvider?->getPid();
+        $currentPid = (is_int($raw) && $raw > 0) ? $raw : (int) getmypid();
+        if ($currentPid <= 0) {
+            $currentPid = 1;
+        }
         if ($currentPid !== $this->pid) {
             $this->reset();
             $this->pid = $currentPid;
         }
 
-        if (
-            ! isset($this->connections[$name])
-            || $this->connections[$name] === null
-            || ! $this->connections[$name]->isConnected()
-        ) {
-            $config = $this->connectionDefinitions[$name] ?? $this->connectionDefinitions['default'] ?? [];
-            $this->connections[$name] = $this->factory->create($config);
+        $conn = $this->connections[$name] ?? null;
+        if (! $conn instanceof AbstractConnection || ! $conn->isConnected()) {
+            /** @var array<string,mixed> $cfg */
+            $cfg = $this->connectionDefinitions[$name] ?? $this->connectionDefinitions['default'] ?? [];
+            $created = $this->factory->create($cfg);
+            $this->connections[$name] = $created;
+            return $created; // always AbstractConnection
         }
-
-        return $this->connections[$name];
+        return $conn; // guaranteed AbstractConnection
     }
 
     /**
@@ -176,23 +186,22 @@ final class ConnectionManager implements ConnectionManagerInterface
 
             return;
         }
-        if ($name !== null) {
-            if (isset($this->connections[$name]) && $this->connections[$name]) {
-                try {
-                    $this->connections[$name]->close();
-                } catch (Throwable) {
-                }
-                $this->connections[$name] = null;
+        $conn = $this->connections[$name] ?? null;
+        if ($conn instanceof AbstractConnection) {
+            try {
+                $conn->close();
+            } catch (Throwable) {
             }
-            if (isset($this->channels[$name])) {
-                try {
-                    if ($this->channels[$name]->is_open()) {
-                        $this->channels[$name]->close();
-                    }
-                } catch (Throwable) {
+            $this->connections[$name] = null;
+        }
+        if (isset($this->channels[$name])) {
+            try {
+                if ($this->channels[$name]->is_open()) {
+                    $this->channels[$name]->close();
                 }
-                unset($this->channels[$name], $this->channelUses[$name]);
+            } catch (Throwable) {
             }
+            unset($this->channels[$name], $this->channelUses[$name]);
         }
     }
 }

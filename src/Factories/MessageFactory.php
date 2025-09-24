@@ -17,12 +17,17 @@ final class MessageFactory
     {
     }
 
+    /**
+     * @param array<string,mixed>|null $headers
+     */
     public function make(ProducerPayloadInterface $payload, ?array $headers): AMQPMessage
     {
         $requestId = null;
         if (function_exists('request')) {
             try {
-                $requestId = request()?->header('X-Request-Id');
+                /** @var \Illuminate\Http\Request|null $r */
+                $r = request();
+                $requestId = $r ? $r->header('X-Request-Id') : null;
             } catch (Throwable) {
                 $requestId = null;
             }

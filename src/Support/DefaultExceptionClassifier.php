@@ -14,8 +14,12 @@ final class DefaultExceptionClassifier implements ExceptionClassifierInterface
 {
     public function isTransient(Throwable $e): bool
     {
-        return $e instanceof AMQPIOException
-            || $e instanceof AMQPProtocolException
-            || $e instanceof AMQPProtocolChannelException;
+        if ($e instanceof AMQPIOException) {
+            return true;
+        }
+        if ($e instanceof AMQPProtocolChannelException) { // more specific before parent
+            return true;
+        }
+        return $e instanceof AMQPProtocolException;
     }
 }

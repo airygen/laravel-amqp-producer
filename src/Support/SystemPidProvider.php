@@ -10,6 +10,6 @@ final class SystemPidProvider implements PidProviderInterface
 {
     public function getPid(): int
     {
-        return getmypid();
+        return (int) getmypid();
     }
 }

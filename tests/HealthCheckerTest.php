@@ -25,17 +25,17 @@ final class HealthCheckerTest extends TestCase
             {
             }
 
-            public function get(): \PhpAmqpLib\Connection\AbstractConnection
+            public function get(string $name = 'default'): \PhpAmqpLib\Connection\AbstractConnection
             {
                 throw new \LogicException('unused');
             }
 
-            public function withChannel(callable $fn)
+            public function withChannel(callable $fn, string $connectionName = 'default')
             {
                 return $fn($this->ch);
             }
 
-            public function reset(): void
+            public function reset(?string $name = null): void
             {
             }
         };
@@ -48,17 +48,17 @@ final class HealthCheckerTest extends TestCase
     {
         $manager = new class implements ConnectionManagerInterface
         {
-            public function get(): \PhpAmqpLib\Connection\AbstractConnection
+            public function get(string $name = 'default'): \PhpAmqpLib\Connection\AbstractConnection
             {
                 throw new \LogicException('unused');
             }
 
-            public function withChannel(callable $fn)
+            public function withChannel(callable $fn, string $connectionName = 'default')
             {
                 throw new \RuntimeException('fail');
             }
 
-            public function reset(): void
+            public function reset(?string $name = null): void
             {
             }
         };

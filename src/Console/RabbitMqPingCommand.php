@@ -16,11 +16,11 @@ final class RabbitMqPingCommand extends Command
 
     public function handle(ConnectionManagerInterface $manager): int
     {
-    /** @var string|null $name */
-    $name = $this->argument('connection');
-    $raw = config('amqp.connections', ['default' => []]);
-    $candidates = is_array($raw) ? array_keys($raw) : ['default'];
-    $names = $name ? [$name] : array_map('strval', $candidates);
+        /** @var string|null $name */
+        $name = $this->argument('connection');
+        $raw = config('amqp.connections', ['default' => []]);
+        $candidates = is_array($raw) ? array_keys($raw) : ['default'];
+        $names = $name ? [$name] : array_map('strval', $candidates);
         $checker = new HealthChecker($manager);
         $results = $checker->ping($names);
         $ok = true;

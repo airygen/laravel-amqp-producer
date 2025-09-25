@@ -70,15 +70,9 @@ final class ConnectionManagerPidDriftTest extends TestCase
                 'user' => 'u',
                 'password' => 'p',
                 'vhost' => '/',
-                'options' => [
-                    'reuse_channel' => true,
-                    'max_channel_uses' => 10,
-                ],
+                'options' => [],
             ],
-            'options' => [
-                'reuse_channel' => true,
-                'max_channel_uses' => 10,
-            ],
+            'options' => [],
         ];
         $manager = new ConnectionManager($factory, $cfg, $pidProvider);
 
@@ -92,9 +86,9 @@ final class ConnectionManagerPidDriftTest extends TestCase
         $manager->withChannel(fn (AMQPChannel $c) => null, 'default');
 
         $this->assertSame(
-            2,
+            4,
             $createCalls,
-            'Expected two connection creations (before and after PID drift)'
+            'Always-close mode: each withChannel call creates a new connection'
         );
     }
 }

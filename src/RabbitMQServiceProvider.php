@@ -29,14 +29,12 @@ final class RabbitMQServiceProvider extends ServiceProvider
             throw new \RuntimeException('Missing AMQP connections config');
         }
 
-        $this->app->singleton(PidProviderInterface::class, SystemPidProvider::class);
 
         $this->app->singleton(
             ConnectionManager::class,
             fn ($app) => new ConnectionManager(
                 $app->make(ConnectionFactory::class),
-                $amqpConfig,
-                $app->make(PidProviderInterface::class)
+                $amqpConfig
             )
         );
         $this->app->alias(

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Airygen\RabbitMQ\Tests;
 
-use Airygen\RabbitMQ\Contracts\PidProviderInterface;
 use Airygen\RabbitMQ\Factories\ConnectionFactory;
 use Airygen\RabbitMQ\Support\ConnectionManager;
 use PhpAmqpLib\Channel\AMQPChannel;
@@ -78,21 +77,10 @@ final class ConnectionManagerDisposeTest extends TestCase
                     'vhost' => '/',
                 ],
             ],
-            'options' => [
-                'reuse_channel' => true,
-                'max_channel_uses' => 100,
-            ],
+            'options' => [],
         ];
 
-        $pidProvider = new class implements PidProviderInterface
-        {
-            public function getPid(): int
-            {
-                return 123;
-            }
-        };
-
-        $cm = new ConnectionManager($factory, $config, $pidProvider);
+        $cm = new ConnectionManager($factory, $config);
 
         $captured = null;
         $cm->withChannel(function ($ch) use (&$captured) {

@@ -39,10 +39,7 @@ return [
                 'lazy' => true,
                 'keepalive' => true,
                 'heartbeat' => 60,
-                // Reuse a single channel per connection (improves throughput). Disable if you need short-lived channels per publish.
-                'reuse_channel' => true,
-                // Recreate the reused channel after N publishes to avoid very long-lived delivery tag growth.
-                'max_channel_uses' => 5000,
+                // Channel reuse removed: each publish opens/closes channel and connection
             ],
         ],
         // Add more named connections if needed
@@ -176,28 +173,8 @@ For production telemetry, consider periodically reading the snapshot and pushing
 
 > Note: These counters are process‑local (not shared across workers). If you run Octane/Swoole multi-worker, aggregate externally.
 
-## Performance: Channel Reuse
-Opening a channel for every publish adds latency. By default, if `options.reuse_channel` is true, the connection manager will:
-
-1. Create one channel the first time you publish on a connection.
-2. Reuse it while it stays open and usage < `max_channel_uses`.
-3. Rotate (close & recreate) after the threshold or if it becomes stale/closed.
-4. `reset()` explicitly disposes both the connection and any cached channel.
-
-Reasons to keep reuse enabled (recommended):
-* Lower per-message overhead
-* Fewer syscalls and protocol frames
-
-Reasons to disable (`reuse_channel` => false):
-* You frequently declare/delete exclusive/temporary queues mid-flow
-* You rely on channel-level QoS changes per publish
-* You are diagnosing channel state issues
-
-Tuning:
-* Increase `max_channel_uses` for very high throughput producers (e.g. 50k+ messages / minute)
-* Decrease if you want more frequent rotation for memory / delivery-tag reset hygiene
-
-Fallback: If reuse is disabled, behavior reverts to open→publish→close each call as before.
+## Behavior: Always Open/Close
+For operational safety across PHP-FPM/CLI and worker runtimes (Octane/Swoole/RoadRunner), this package always opens a fresh channel for each publish and closes both channel and connection afterwards.
 
 ## Octane / Swoole / RoadRunner
 ## Health Check Command
@@ -211,7 +188,7 @@ Long-lived worker environments reuse PHP processes, so you must ensure stale con
 
 Built-in safeguards:
 * On worker start/stop (Octane events) the connection manager `reset()` is invoked (if Octane is installed).
-* Internal PID detection: if a forked worker inherits the manager, the first call to `get()` notices PID drift and resets lazily.
+* Connections are opened and closed per publish; you can call `ConnectionManager::reset()` manually if desired.
 
 Recommended practices:
 1. Avoid holding a `Publisher` instance in static singletons you construct before workers fork.
@@ -232,8 +209,6 @@ If you need TLS encryption, enable and configure the SSL related options inside 
         'default' => [
             // ... host, port, user, password, vhost
             'options' => [
-                'reuse_channel' => true,
-                'max_channel_uses' => 5000,
                 'ssl' => true,
                 'cafile' => base_path('certs/ca.pem'),
                 'local_cert' => base_path('certs/client.pem'),

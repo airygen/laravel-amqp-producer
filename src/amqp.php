@@ -5,6 +5,8 @@ return [
         'base_delay' => 0.2,      // seconds
         'max_delay' => 1.5,       // seconds
         'jitter' => false,        // enable randomization of backoff delay
+        // Publisher confirm timeout (in seconds). Increase in high-latency environments.
+        'confirm_timeout' => (float) env('AMQP_CONFIRM_TIMEOUT', 10.0),
     ],
     'connections' => [
         'default' => [
@@ -16,9 +18,7 @@ return [
             'options' => [
                 'lazy' => true,
                 'keepalive' => true,
-                'heartbeat' => 60,
-                'reuse_channel' => true,
-                'max_channel_uses' => 5000,
+                'heartbeat' => (int) env('AMQP_HEARTBEAT', 60),
                 // TLS / SSL (optional)
                 // 'ssl' => true,
                 // 'cafile' => base_path('certs/ca.pem'),

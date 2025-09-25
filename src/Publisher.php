@@ -35,8 +35,10 @@ final class Publisher implements ProducerInterface
     /** @var callable */
     private $randFloat;
 
+    private float $confirmTimeout;
+
     /**
-     * @param array{base_delay?:float|int,max_delay?:float|int,jitter?:bool} $retryConfig
+     * @param array{base_delay?:float|int,max_delay?:float|int,jitter?:bool,confirm_timeout?:float|int} $retryConfig
      */
     public function __construct(
         private ConnectionManagerInterface $cm,
@@ -51,6 +53,7 @@ final class Publisher implements ProducerInterface
         $this->retryBaseDelay = (float) ($retryConfig['base_delay'] ?? 0.2);
         $this->retryMaxDelay = (float) ($retryConfig['max_delay'] ?? 1.5);
         $this->retryJitter = (bool) ($retryConfig['jitter'] ?? false);
+        $this->confirmTimeout = (float) ($retryConfig['confirm_timeout'] ?? 10.0);
         $this->randFloat = $randFloat ?? static fn (): float => mt_rand() / mt_getrandmax();
     }
 
@@ -136,7 +139,7 @@ final class Publisher implements ProducerInterface
                         $channel->confirm_select();
                         $msg = $this->msgFactory->make($payload, $header);
                         $channel->basic_publish($msg, $exchange, $routingKey, true);
-                        $ok = $channel->wait_for_pending_acks_returns(5.0);
+                        $ok = $channel->wait_for_pending_acks_returns($this->confirmTimeout);
                         if ($ok === false) {
                             throw new RuntimeException('Publisher confirm timeout or nack');
                         }
@@ -192,7 +195,7 @@ final class Publisher implements ProducerInterface
                                 $exchange = $payload->getExchangeName() ?? '';
                                 $msg = $this->msgFactory->make($payload, $header);
                                 $ch->basic_publish($msg, $exchange, $routingKey, true);
-                                $ok = $ch->wait_for_pending_acks_returns(5.0);
+                                $ok = $ch->wait_for_pending_acks_returns($this->confirmTimeout);
                                 if ($ok === false) {
                                     throw new RuntimeException('Publisher confirm timeout or nack (batch)');
                                 }
@@ -258,7 +261,9 @@ final class Publisher implements ProducerInterface
                 ]);
                 usleep((int) ($sleep * 1_000_000));
                 $delay = min($delay * 2, $this->retryMaxDelay);
-                if ($connectionName !== null) {
+
+                // Only reset connection for connection-level errors, not timeouts or channel-level issues
+                if ($connectionName !== null && $this->shouldResetConnection($e)) {
                     $this->cm->reset($connectionName);
                     Stats::incr('connection_resets');
                     Stats::incrConnection($connectionName, 'connection_resets');
@@ -267,6 +272,38 @@ final class Publisher implements ProducerInterface
         }
         /** @var Throwable $last Guaranteed non-null when loop exits without return */
         throw $last;
+    }
+
+    /**
+     * Determine if connection should be reset for this exception.
+     * Only reset for connection-level issues, not timeout or channel-level problems.
+     */
+    private function shouldResetConnection(Throwable $e): bool
+    {
+        $message = strtolower($e->getMessage());
+        $class = get_class($e);
+        
+        // Reset connection for serious connection-level errors
+        if (str_contains($class, 'AMQPConnectionException') || 
+            str_contains($class, 'AMQPIOException')) {
+            return true;
+        }
+        
+        // Don't reset for timeout issues (likely temporary congestion)
+        if (str_contains($message, 'timeout') || 
+            str_contains($message, 'nack') ||
+            str_contains($message, 'confirm timeout')) {
+            return false;
+        }
+        
+        // Reset for other connection issues
+        if (str_contains($message, 'connection') && 
+            (str_contains($message, 'closed') || str_contains($message, 'broken'))) {
+            return true;
+        }
+        
+        // Conservative: don't reset by default
+        return false;
     }
 
     /**

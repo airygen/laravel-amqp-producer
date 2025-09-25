@@ -72,8 +72,6 @@ final class PublisherIntegrationTest extends TestCase
                     'password' => $pass,
                     'vhost' => $vhost,
                     'options' => [
-                        'reuse_channel' => true,
-                        'max_channel_uses' => 10,
                         'heartbeat' => 30,
                     ],
                 ],

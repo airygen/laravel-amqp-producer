@@ -54,13 +54,13 @@ coverage:
 	$(DOCKER_COMPOSE) run --rm -e XDEBUG_MODE=coverage $(PHP_SERVICE) php -d xdebug.mode=coverage vendor/bin/phpunit --coverage-html=coverage/html --coverage-clover=coverage/clover.xml || true
 
 lint:
-	$(PHP_RUN) vendor/bin/phpcs --standard=phpcx.xml --report=full
+	$(PHP_RUN) vendor/bin/phpcs --standard=phpcs.xml --report=full
 
 analyse:
 	$(PHP_RUN) vendor/bin/phpstan analyse --memory-limit=512M
 
 fix:
-	$(DOCKER_COMPOSE) run --rm $(PHP_SERVICE) vendor/bin/phpcbf --standard=phpcx.xml || true
+	$(DOCKER_COMPOSE) run --rm $(PHP_SERVICE) vendor/bin/phpcbf --standard=phpcs.xml || true
 
 clean:
 	rm -rf vendor coverage .phpunit.cache || true

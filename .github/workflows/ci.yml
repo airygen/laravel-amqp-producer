@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies (no dev update)
         run: composer install --no-interaction --prefer-dist
       - name: Lint (PHPCS)
-        run: vendor/bin/phpcs --standard=phpcx.xml --report=full
+        run: vendor/bin/phpcs --standard=phpcs.xml --report=full
       - name: Static Analysis (PHPStan)
         run: vendor/bin/phpstan analyse --memory-limit=512M
       - name: Unit Tests

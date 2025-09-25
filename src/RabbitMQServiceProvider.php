@@ -7,7 +7,6 @@ namespace Airygen\RabbitMQ;
 use Airygen\RabbitMQ\Contracts\ConnectionManagerInterface;
 use Airygen\RabbitMQ\Contracts\ExceptionClassifierInterface;
 use Airygen\RabbitMQ\Contracts\MetricsExporterInterface;
-use Airygen\RabbitMQ\Contracts\PidProviderInterface;
 use Airygen\RabbitMQ\Contracts\ProducerInterface;
 use Airygen\RabbitMQ\Factories\ConnectionFactory;
 use Airygen\RabbitMQ\Factories\MessageFactory;
@@ -15,7 +14,6 @@ use Airygen\RabbitMQ\Support\ConnectionManager;
 use Airygen\RabbitMQ\Support\DefaultExceptionClassifier;
 use Airygen\RabbitMQ\Support\PrometheusMetricsExporter;
 use Airygen\RabbitMQ\Support\SystemClock;
-use Airygen\RabbitMQ\Support\SystemPidProvider;
 use Illuminate\Support\ServiceProvider;
 
 final class RabbitMQServiceProvider extends ServiceProvider

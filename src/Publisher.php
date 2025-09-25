@@ -282,26 +282,32 @@ final class Publisher implements ProducerInterface
     {
         $message = strtolower($e->getMessage());
         $class = get_class($e);
-        
+
         // Reset connection for serious connection-level errors
-        if (str_contains($class, 'AMQPConnectionException') || 
-            str_contains($class, 'AMQPIOException')) {
+        if (
+            str_contains($class, 'AMQPConnectionException') ||
+            str_contains($class, 'AMQPIOException')
+        ) {
             return true;
         }
-        
+
         // Don't reset for timeout issues (likely temporary congestion)
-        if (str_contains($message, 'timeout') || 
+        if (
+            str_contains($message, 'timeout') ||
             str_contains($message, 'nack') ||
-            str_contains($message, 'confirm timeout')) {
+            str_contains($message, 'confirm timeout')
+        ) {
             return false;
         }
-        
+
         // Reset for other connection issues
-        if (str_contains($message, 'connection') && 
-            (str_contains($message, 'closed') || str_contains($message, 'broken'))) {
+        if (
+            str_contains($message, 'connection') &&
+            (str_contains($message, 'closed') || str_contains($message, 'broken'))
+        ) {
             return true;
         }
-        
+
         // Conservative: don't reset by default
         return false;
     }

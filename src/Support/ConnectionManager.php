@@ -43,7 +43,7 @@ final class ConnectionManager implements ConnectionManagerInterface
                     // Ignore errors when closing stale connection
                 }
             }
-            
+
             /** @var array<string,mixed> $cfg */
             $cfg = $this->connectionDefinitions[$name] ?? $this->connectionDefinitions['default'] ?? [];
             $created = $this->factory->create($cfg);
